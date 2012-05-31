@@ -1,6 +1,7 @@
 package org.canis85.planetoidgen;
 
 import java.io.Serializable;
+import java.util.EnumMap;
 import java.util.Map;
 import org.bukkit.Material;
 
@@ -22,19 +23,40 @@ public class Planetoid implements Serializable {
   private Material coreMat;
   private Material shellMat;
 
-  private Map<Material, Double> coreVeins;
-  private Map<Material, Double> shellVeins;
+  private Map<Material, Double> coreVeinsSpawn;
+  private Map<Material, Double> coreVeinsGrowth;
+  private Map<Material, Double> shellVeinsSpawn;
+  private Map<Material, Double> shellVeinsGrowth;
 
   public Planetoid(int radius, int shellThick, Material coreMat, Material shellMat,
-          Map<Material, Double> coreVeins, Map<Material, Double> shellVeins) {
+          Map<Material, VeinProbability> coreVeins, Map<Material, VeinProbability> shellVeins) {
     this.radius = radius;
     this.shellThickness = shellThick;
 
     this.coreMat = coreMat;
     this.shellMat = shellMat;
 
-    this.coreVeins = coreVeins;
-    this.shellVeins = shellVeins;
+    this.coreVeinsSpawn = new EnumMap<Material, Double>(Material.class);
+    this.coreVeinsGrowth = new EnumMap<Material, Double>(Material.class);
+    this.shellVeinsSpawn = new EnumMap<Material, Double>(Material.class);
+    this.shellVeinsGrowth = new EnumMap<Material, Double>(Material.class);
+
+    Planetoid.extractSpawn(coreVeins, this.coreVeinsSpawn);
+    Planetoid.extractGrowth(coreVeins, this.coreVeinsGrowth);
+    Planetoid.extractSpawn(shellVeins, this.shellVeinsSpawn);
+    Planetoid.extractGrowth(shellVeins, this.shellVeinsGrowth);
+  }
+
+  private static void extractGrowth(Map<Material, VeinProbability> source, Map<Material, Double> dest) {
+    for (Material m: source.keySet()) {
+      dest.put(m, source.get(m).getGrowthProbability());
+    }
+  }
+
+  private static void extractSpawn(Map<Material, VeinProbability> source, Map<Material, Double> dest) {
+    for (Material m: source.keySet()) {
+      dest.put(m, source.get(m).getSpawnProbability());
+    }
   }
 
   /**
@@ -108,16 +130,30 @@ public class Planetoid implements Serializable {
   }
 
   /**
-   * @return the coreVeins
+   * @return the coreVeinsSpawn
    */
-  public Map<Material, Double> getCoreVeins() {
-    return coreVeins;
+  public Map<Material, Double> getCoreVeinsSpawn() {
+    return coreVeinsSpawn;
   }
 
   /**
-   * @return the shellVeins
+   * @return the coreVeinsGrowth
    */
-  public Map<Material, Double> getShellVeins() {
-    return shellVeins;
+  public Map<Material, Double> getCoreVeinsGrowth() {
+    return coreVeinsGrowth;
+  }
+
+  /**
+   * @return the shellVeinsSpawn
+   */
+  public Map<Material, Double> getShellVeinsSpawn() {
+    return shellVeinsSpawn;
+  }
+
+  /**
+   * @return the shellVeinsGrowth
+   */
+  public Map<Material, Double> getShellVeinsGrowth() {
+    return shellVeinsGrowth;
   }
 }

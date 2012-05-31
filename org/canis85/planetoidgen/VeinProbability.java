@@ -22,55 +22,30 @@
 
 package org.canis85.planetoidgen;
 
-import java.util.Map;
-import java.util.Random;
-
 /**
  *
- * @author Niphred < niphred@curufinwe.org >
+ * @author Eugen Beck < niphred@curufinwe.org >
  */
-public class Util {
-  public static <T> T sample(Random rnd, Map<T, Double> m) {
-    return sample(rnd, m, true);
+public class VeinProbability {
+  private double spawn;
+  private double grow;
+
+  public VeinProbability(double min, double max) {
+    this.spawn = min;
+    this.grow = max;
   }
 
-  public static <T> T sample(Random rnd, Map<T, Double> m, boolean normalize) {
-    double sum = 0.0;
-
-    if (normalize) {
-      for (T key: m.keySet()) {
-        sum += Math.abs(m.get(key));
-      }
-    }
-
-    if (sum == 0.0 || !normalize) {
-      sum = 1.0;
-    }
-
-    double goal = rnd.nextDouble();
-
-    for (T key: m.keySet()) {
-      double prob = Math.abs(m.get(key)) / sum;
-      goal -= prob;
-      if (goal <= 0.0) {
-        return key;
-      }
-    }
-
-    return null;
+  public double getSpawnProbability() {
+    return this.spawn;
   }
 
-    public static <K,V> String mapToString(Map<K, V> m) {
-      StringBuilder sb = new StringBuilder();
+  public double getGrowthProbability() {
+    return this.grow;
+  }
 
-      for (K key: m.keySet()) {
-        sb.append(key.toString());
-        sb.append(" => ");
-        sb.append(m.get(key).toString());
-        sb.append("\n");
-      }
-
-      return sb.toString();
-    }
+  @Override
+  public String toString() {
+    return Double.toString(this.spawn) + " -> " + Double.toString(this.grow);
+  }
 
 }

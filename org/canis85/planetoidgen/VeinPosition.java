@@ -22,55 +22,46 @@
 
 package org.canis85.planetoidgen;
 
-import java.util.Map;
-import java.util.Random;
-
 /**
- *
+ * Represents the location of a vein
  * @author Niphred < niphred@curufinwe.org >
  */
-public class Util {
-  public static <T> T sample(Random rnd, Map<T, Double> m) {
-    return sample(rnd, m, true);
+public class VeinPosition {
+  private int x;
+  private int y;
+  private int z;
+  private int generation;
+
+  public VeinPosition(int x, int y, int z) {
+    this(x, y, z, 0);
   }
 
-  public static <T> T sample(Random rnd, Map<T, Double> m, boolean normalize) {
-    double sum = 0.0;
-
-    if (normalize) {
-      for (T key: m.keySet()) {
-        sum += Math.abs(m.get(key));
-      }
-    }
-
-    if (sum == 0.0 || !normalize) {
-      sum = 1.0;
-    }
-
-    double goal = rnd.nextDouble();
-
-    for (T key: m.keySet()) {
-      double prob = Math.abs(m.get(key)) / sum;
-      goal -= prob;
-      if (goal <= 0.0) {
-        return key;
-      }
-    }
-
-    return null;
+  public VeinPosition(int x, int y, int z, int generation) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.generation = generation;
   }
 
-    public static <K,V> String mapToString(Map<K, V> m) {
-      StringBuilder sb = new StringBuilder();
+  @Override
+  public String toString() {
+    return "<x: " + this.x + " y: " + this.y + " z: " + this.z + " gen: " + this.generation + ">";
+  }
 
-      for (K key: m.keySet()) {
-        sb.append(key.toString());
-        sb.append(" => ");
-        sb.append(m.get(key).toString());
-        sb.append("\n");
-      }
+  public int getX() {
+    return this.x;
+  }
 
-      return sb.toString();
-    }
+  public int getY() {
+    return this.y;
+  }
+
+  public int getZ() {
+    return this.z;
+  }
+
+  public int getGeneration() {
+    return this.generation;
+  }
 
 }

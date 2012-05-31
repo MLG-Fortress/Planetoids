@@ -31,25 +31,6 @@ import org.bukkit.configuration.ConfigurationSection;
  * @author Niphred < niphred@curufinwe.org >
  */
 public class PlanetoidTemplate {
-
-  private static class VeinProbability {
-
-    private double min;
-    private double max;
-
-    public VeinProbability(double min, double max) {
-      this.min = min;
-      this.max = max;
-    }
-
-    public double getMin() {
-      return min;
-    }
-
-    public double getMax() {
-      return max;
-    }
-  }
   
   // these 3 values are not used within this class, but
   // in PlanetoidSpawner to select a template
@@ -79,13 +60,13 @@ public class PlanetoidTemplate {
 
     this.shells = PlanetoidTemplate.processMaterials(config.getStringList("shell.bulk"));
     if (this.shells.isEmpty()) {
-      this.shells.put(Material.DIRT, 1.0);
+      this.shells.put(Material.AIR, 1.0);
     }
     this.shellVeins = PlanetoidTemplate.processVeins(config.getStringList("shell.veins"));
 
     this.cores = PlanetoidTemplate.processMaterials(config.getStringList("core.bulk"));
     if (this.cores.isEmpty()) {
-      this.cores.put(Material.STONE, 1.0);
+      this.cores.put(Material.AIR, 1.0);
     }
     this.coreVeins = PlanetoidTemplate.processVeins(config.getStringList("core.veins"));
   }
@@ -99,22 +80,7 @@ public class PlanetoidTemplate {
     Material shell = Util.sample(rnd, this.shells);
     Material core = Util.sample(rnd, this.cores);
 
-    Map<Material, Double> sVeins = PlanetoidTemplate.generateVeinPercentages(rnd, this.shellVeins);
-    Map<Material, Double> cVeins = PlanetoidTemplate.generateVeinPercentages(rnd, this.coreVeins);
-
-    return new Planetoid(radius, shellSize, core, shell, cVeins, sVeins);
-  }
-
-  private static Map<Material, Double> generateVeinPercentages(Random rnd, Map<Material, VeinProbability> map) {
-    Map<Material, Double> result = new EnumMap<Material, Double>(Material.class);
-
-    for (Material mat : map.keySet()) {
-      VeinProbability vp = map.get(mat);
-      double prob = Math.abs(vp.getMin()) + rnd.nextDouble() * Math.abs(vp.getMax() - vp.getMin());
-      result.put(mat, prob);
-    }
-
-    return result;
+    return new Planetoid(radius, shellSize, core, shell, this.coreVeins, this.shellVeins);
   }
 
   private static Map<Material, Double> processMaterials(List<String> matList) {
@@ -123,6 +89,11 @@ public class PlanetoidTemplate {
     for (String s : matList) {
       String[] parts = s.split("-");
       Material mat = Material.matchMaterial(parts[0]);
+
+      if (mat == null) {
+        System.err.println("Invalid Material: " + parts[0]);
+        mat = Material.AIR;
+      }
 
       if (!mat.isBlock()) {
         continue;
@@ -145,21 +116,26 @@ public class PlanetoidTemplate {
       String[] parts = s.split("-");
       Material mat = Material.matchMaterial(parts[0]);
 
+      if (mat == null) {
+        System.err.println("Invalid Material: " + parts[0]);
+        mat = Material.AIR;
+      }
+
       if (!mat.isBlock()) {
         continue;
       }
 
-      double probmin = 0.0;
+      double probspawn = 0.0;
       if (parts.length >= 2) {
-        probmin = Double.valueOf(parts[1]);
+        probspawn = Double.valueOf(parts[1]);
       }
 
-      double probmax = probmin;
+      double probgrowth = 0.0;
       if (parts.length >= 3) {
-        probmax = Double.valueOf(parts[2]);
+        probgrowth = Double.valueOf(parts[2]);
       }
 
-      result.put(mat, new VeinProbability(probmin, probmax));
+      result.put(mat, new VeinProbability(probspawn, probgrowth));
     }
 
     return result;
@@ -195,7 +171,22 @@ public class PlanetoidTemplate {
 
   @Override
   public String toString() {
-    return "Core: " + Arrays.toString(this.cores.keySet().toArray());
+    StringBuilder sb = new StringBuilder();
+
+    sb.append("Shell:[\n");
+    sb.append(Util.mapToString(this.shells));
+    sb.append(" ]\n");
+    sb.append("Shell-Veins:[\n");
+    sb.append(Util.mapToString(this.shellVeins));
+    sb.append(" ]\n");
+    sb.append("Core:[\n");
+    sb.append(Util.mapToString(this.cores));
+    sb.append(" ]\n");
+    sb.append("Core-Veins:[\n");
+    sb.append(Util.mapToString(this.coreVeins));
+    sb.append(" ]\n");
+
+    return sb.toString();
   }
 
   /**

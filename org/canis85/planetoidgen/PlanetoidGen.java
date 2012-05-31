@@ -37,6 +37,7 @@ public class PlanetoidGen extends JavaPlugin {
     config.addDefault("planetoids.disablemonsters", true);
     config.addDefault("planetoids.disableanimals", false);
     config.addDefault("planetoids.seed", seedPod.nextLong());
+    config.addDefault("planetoids.removesingleveins", true);
 
     config.addDefault("planetoids.floor.height", 0);
     config.addDefault("planetoids.floor.material", Material.BEDROCK.toString());
@@ -54,10 +55,10 @@ public class PlanetoidGen extends JavaPlugin {
     config.addDefault("planetoids.planets.templates.default.shell.minSize", 3);
     config.addDefault("planetoids.planets.templates.default.shell.maxSize", 5);
     config.addDefault("planetoids.planets.templates.default.shell.bulk", Arrays.asList(Material.DIRT.toString() + "-1.0"));
-    config.addDefault("planetoids.planets.templates.default.shell.veins", Arrays.asList(Material.COAL_ORE.toString() + "-0.05"));
+    config.addDefault("planetoids.planets.templates.default.shell.veins", Arrays.asList(Material.COAL_ORE.toString() + "-0.05-.33"));
 
     config.addDefault("planetoids.planets.templates.default.core.bulk", Arrays.asList(Material.STONE.toString() + "-1.0"));
-    config.addDefault("planetoids.planets.templates.default.core.veins", Arrays.asList(Material.IRON_ORE.toString() + "-0.01"));
+    config.addDefault("planetoids.planets.templates.default.core.veins", Arrays.asList(Material.IRON_ORE.toString() + "-0.01-.2"));
 
     this.saveConfig();
   }

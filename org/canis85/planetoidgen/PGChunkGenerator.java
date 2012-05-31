@@ -28,9 +28,12 @@ public class PGChunkGenerator extends ChunkGenerator {
   private long seed;   //Seed for generating planetoids
   private int density; //Number of planetoids it will try to create per "system"
   private int minDistance; //Minimum distance between planets, in blocks
+  private boolean removeSingletons; // Remove veins that didnt grow at  least once
+
   private int floorHeight; //Floor height
   private Material floorBlock; //BlockID for the floor
   private boolean layer0Bedrock; // if true layer 0 will be bedrock
+
   private PlanetoidTemplateManager tmplManager; // holds all the planetoid templates
 
   public PGChunkGenerator(Plugin plugin) {
@@ -40,6 +43,7 @@ public class PGChunkGenerator extends ChunkGenerator {
     this.seed = (long) config.getLong("planetoids.seed");
     this.density = config.getInt("planetoids.planets.density");
     this.minDistance = config.getInt("planetoids.planets.minDistance");
+    this.removeSingletons = config.getBoolean("planetoids.removesingleveins");
 
     this.floorBlock = Material.matchMaterial(config.getString("planetoids.floor.material"));
     this.floorHeight = config.getInt("planetoids.floor.height");
@@ -143,57 +147,22 @@ public class PGChunkGenerator extends ChunkGenerator {
       int relCenterX = curPl.getxPos() - chunkXPos;
       int relCenterZ = curPl.getzPos() - chunkZPos;
 
-      //Generate shell
-      for (int curX = -curPl.getRadius(); curX <= curPl.getRadius(); curX++) {
-        int blkX = curX + relCenterX;
-        if (blkX >= 0 && blkX < 16) {
-          //Figure out radius of this circle
-          int distFromCenter = Math.abs(curX);
-          int radius = (int) Math.ceil(Math.sqrt((curPl.getRadius() * curPl.getRadius()) - (distFromCenter * distFromCenter)));
-          for (int curZ = -radius; curZ <= radius; curZ++) {
-            int blkZ = curZ + relCenterZ;
-            if (blkZ >= 0 && blkZ < 16) {
-              int zDistFromCenter = Math.abs(curZ);
-              int zRadius = (int) Math.ceil(Math.sqrt((radius * radius) - (zDistFromCenter * zDistFromCenter)));
-              for (int curY = -zRadius; curY <= zRadius; curY++) {
-                int blkY = curPl.getyPos() + curY;
-                //retVal[(blkX * 16 + blkZ) * 128 + blkY] = (byte) curPl.shellBlk.getId();
-                if (retVal[blkY >> 4] == null) {
-                  retVal[blkY >> 4] = new short[4096];
-                }
-                retVal[blkY >> 4][((blkY & 0xF) << 8) | (blkZ << 4) | blkX] = (byte) curPl.getShellMat().getId();
-              }
-            }
-          }
-        }
+      // discard planets that will not be in this chunk
+      int diffX = relCenterX - 8;
+      int diffZ = relCenterZ - 8;
+      if (Math.floor(Math.sqrt(diffX * diffX + diffZ * diffZ)) >= curPl.getRadius() + 12) {
+        continue;
       }
+
+      //Generate shell
+      generateSphere(random, retVal, curPl.getRadius(), relCenterX, curPl.getyPos(), relCenterZ,
+                     curPl.getShellMat(), curPl.getShellVeinsSpawn(), curPl.getShellVeinsGrowth());
 
       //Generate core
       int coreRadius = curPl.getRadius() - curPl.getShellThickness();
       if (coreRadius > 0) {
-        for (int curX = -coreRadius; curX <= coreRadius; curX++) {
-          int blkX = curX + relCenterX;
-          if (blkX >= 0 && blkX < 16) {
-            //Figure out radius of this circle
-            int distFromCenter = Math.abs(curX);
-            int radius = (int) Math.ceil(Math.sqrt((coreRadius * coreRadius) - (distFromCenter * distFromCenter)));
-            for (int curZ = -radius; curZ <= radius; curZ++) {
-              int blkZ = curZ + relCenterZ;
-              if (blkZ >= 0 && blkZ < 16) {
-                int zDistFromCenter = Math.abs(curZ);
-                int zRadius = (int) Math.ceil(Math.sqrt((radius * radius) - (zDistFromCenter * zDistFromCenter)));
-                for (int curY = -zRadius; curY <= zRadius; curY++) {
-                  int blkY = curPl.getyPos() + curY;
-                  //retVal[(blkX * 16 + blkZ) * 128 + blkY] = (byte) curPl.coreBlk.getId();
-                  if (retVal[blkY >> 4] == null) {
-                    retVal[blkY >> 4] = new short[4096];
-                  }
-                  retVal[blkY >> 4][((blkY & 0xF) << 8) | (blkZ << 4) | blkX] = (byte) curPl.getCoreMat().getId();
-                }
-              }
-            }
-          }
-        }
+        generateSphere(random, retVal, coreRadius, relCenterX, curPl.getyPos(), relCenterZ,
+                       curPl.getCoreMat(), curPl.getCoreVeinsSpawn(), curPl.getCoreVeinsGrowth());
       }
     }
     //Fill in the floor
@@ -232,8 +201,8 @@ public class PGChunkGenerator extends ChunkGenerator {
     //If x and Z are zero, generate a log/leaf planet close to 0,0
     if (x == 0 && z == 0) {
       Planetoid spawnPl = new Planetoid(6, 3, Material.LOG, Material.LEAVES,
-                                        new EnumMap<Material, Double>(Material.class),
-                                        new EnumMap<Material, Double>(Material.class));
+              new EnumMap<Material, VeinProbability>(Material.class),
+              new EnumMap<Material, VeinProbability>(Material.class));
       spawnPl.setxPos(7);
       spawnPl.setyPos(70);
       spawnPl.setzPos(7);
@@ -314,4 +283,76 @@ public class PGChunkGenerator extends ChunkGenerator {
     return xDist * xDist + yDist * yDist + zDist * zDist;
   }
 
+  private void generateSphere(Random rnd, short[][] chunk, int radius,
+                                     int relX, int y, int relZ, Material bulk,
+                                     Map<Material, Double> veinSpawn,
+                                     Map<Material, Double> veinGrowth) {
+    Queue<VeinPosition> veinPositions = new ArrayDeque<VeinPosition>();
+
+    for (int curX = -radius; curX <= radius; curX++) {
+      int blkX = curX + relX;
+      if (blkX >= 0 && blkX < 16) {
+        //Figure out radius of this circle
+        int distFromCenter = Math.abs(curX);
+        int radiusX = (int) Math.ceil(Math.sqrt((radius * radius) - (distFromCenter * distFromCenter)));
+        for (int curZ = -radiusX; curZ <= radiusX; curZ++) {
+          int blkZ = curZ + relZ;
+          if (blkZ >= 0 && blkZ < 16) {
+            int zDistFromCenter = Math.abs(curZ);
+            int zRadius = (int) Math.ceil(Math.sqrt((radiusX * radiusX) - (zDistFromCenter * zDistFromCenter)));
+            for (int curY = -zRadius; curY <= zRadius; curY++) {
+              int blkY = y + curY;
+              //retVal[(blkX * 16 + blkZ) * 128 + blkY] = (byte) curPl.shellBlk.getId();
+              if (chunk[blkY >> 4] == null) {
+                chunk[blkY >> 4] = new short[4096];
+              }
+              Material mat = Util.sample(rnd, veinSpawn, false);
+              if (mat == null) {
+                mat = bulk;
+              }
+              else {
+                veinPositions.add(new VeinPosition(blkX, blkY, blkZ));
+              }
+              chunk[blkY >> 4][((blkY & 0xF) << 8) | (blkZ << 4) | blkX] = (short)mat.getId();
+            }
+          }
+        }
+      }
+    }
+
+    // postprocess the chunk to add veins
+    while (!veinPositions.isEmpty()) {
+      VeinPosition p = veinPositions.poll();
+      Material mat = Material.getMaterial(chunk[p.getY() >> 4][((p.getY() & 0xF) << 8) | (p.getZ() << 4) | p.getX()]);
+
+      boolean remove = this.removeSingletons && (p.getGeneration() == 0);
+      for (int i = 0; i < 6; i++) {
+        if (rnd.nextDouble() > veinGrowth.get(mat) * (1.0 / (1 + p.getGeneration()))) {
+          continue;
+        }
+
+        int newX = p.getX() + (1 - i % 2) * (i / 2 == 0 ? 1 : 0);
+        int newY = p.getY() + (1 - i % 2) * (i / 2 == 1 ? 1 : 0);
+        int newZ = p.getZ() + (1 - i % 2) * (i / 2 == 2 ? 1 : 0);
+
+        if (newX >= 0 && newX < 16 && newY >= 0 && newY < chunk.length * 16 && newZ >= 0 && newZ < 16) {
+          // new point is in the current chunk
+          int diffX = newX - relX;
+          int diffY = newY -    y;
+          int diffZ = newZ - relZ;
+          if (diffX*diffX + diffY*diffY + diffZ*diffZ <= radius*radius) {
+            if (chunk[newY >> 4][((newY & 0xF) << 8) | (newZ << 4) | newX] == bulk.getId()) {
+              chunk[newY >> 4][((newY & 0xF) << 8) | (newZ << 4) | newX] = (short)mat.getId();
+              veinPositions.add(new VeinPosition(newX, newY, newZ, p.getGeneration() + 1));
+              remove = false;
+            }
+          }
+        }
+      }
+
+      if (remove) {
+        chunk[p.getY() >> 4][((p.getY() & 0xF) << 8) | (p.getZ() << 4) | p.getX()] = (short)bulk.getId();
+      }
+    }
+  }
 }

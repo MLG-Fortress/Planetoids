@@ -1,2 +1,19 @@
 The original website for this mod is:
 http://dev.bukkit.org/server-mods/planetoids/
+
+Vein generation algorithm:
+Each material in the veins section should have the form:
+MATERIAL_NAME-spawnProbability-growthProbability
+
+When creating a planetoid the spawnProbability is used to check for each Block
+wether it should be a vein of a particular type or not. These are the generation
+0 veins. Note that this probabilities are NOT normalized like the ones for
+planets.
+
+Afterwards the generator tries to extend each vein at every side once. The
+success probability for this is: growthProbability * (1 / (1 + generation)).
+The newly spawned Blocks are parentGeneration + 1 generation Blocks and will be
+expanded later.
+
+You can also specify wether single Veins (=Veins that didn't spawn generation 1
+veins) should be removed (the default) or not.
