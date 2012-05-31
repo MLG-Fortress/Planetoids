@@ -12,32 +12,32 @@ import org.bukkit.Material;
  */
 public class Planetoid implements Serializable {
   //Position, local to the chunk.
-   private int xPos;
-   private int yPos;
-   private int zPos;
+  private int xPos;
+  private int yPos;
+  private int zPos;
 
-   private int radius;
-   private int shellThickness;
+  private int radius;
+  private int shellThickness;
 
-   private Material coreMat;
-   private Material shellMat;
+  private Material coreMat;
+  private Material shellMat;
 
-   private Map<Material, Double> coreVeins;
-   private Map<Material, Double> shellVeins;
+  private Map<Material, Double> coreVeins;
+  private Map<Material, Double> shellVeins;
 
-   public Planetoid(int radius, int shellThick, Material coreMat, Material shellMat,
-                    Map<Material, Double> coreVeins, Map<Material, Double> shellVeins) {
-      this.radius = radius;
-      this.shellThickness = shellThick;
+  public Planetoid(int radius, int shellThick, Material coreMat, Material shellMat,
+          Map<Material, Double> coreVeins, Map<Material, Double> shellVeins) {
+    this.radius = radius;
+    this.shellThickness = shellThick;
 
-      this.coreMat = coreMat;
-      this.shellMat = shellMat;
+    this.coreMat = coreMat;
+    this.shellMat = shellMat;
 
-      this.coreVeins = coreVeins;
-      this.shellVeins = shellVeins;
-   }
+    this.coreVeins = coreVeins;
+    this.shellVeins = shellVeins;
+  }
 
-   /**
+  /**
    * @return the xPos
    */
   public int getxPos() {
@@ -120,5 +120,4 @@ public class Planetoid implements Serializable {
   public Map<Material, Double> getShellVeins() {
     return shellVeins;
   }
-
 }

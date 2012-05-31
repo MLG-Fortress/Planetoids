@@ -7,7 +7,7 @@ package org.canis85.planetoidgen;
  */
 public class PGRunnable implements Runnable {
 
-   public void run() {
-      PlanetoidGen.planetoids.setTime(13801L);
-   }
+  public void run() {
+    PlanetoidGen.planetoids.setTime(13801L);
+  }
 }
