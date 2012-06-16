@@ -3,11 +3,14 @@ package org.canis85.planetoidgen;
 import java.awt.Point;
 import java.io.*;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
-import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.Plugin;
 
@@ -23,9 +26,8 @@ import org.bukkit.plugin.Plugin;
 public class PGChunkGenerator extends ChunkGenerator {
 
   private Plugin plugin;     //ref to plugin
-  private Map<Point, List<Planetoid>> cache;
+  private Map<World, Map<Point, List<Planetoid>>> cache;
   private static final int SYSTEM_SIZE = 50;
-  private long seed;   //Seed for generating planetoids
   private int density; //Number of planetoids it will try to create per "system"
   private int minDistance; //Minimum distance between planets, in blocks
   private boolean removeSingletons; // Remove veins that didnt grow at  least once
@@ -35,12 +37,18 @@ public class PGChunkGenerator extends ChunkGenerator {
   private boolean layer0Bedrock; // if true layer 0 will be bedrock
 
   private PlanetoidTemplateManager tmplManager; // holds all the planetoid templates
+  private FileConfiguration config;
 
   public PGChunkGenerator(Plugin plugin) {
-    Configuration config = plugin.getConfig();
-
     this.plugin = plugin;
-    this.seed = (long) config.getLong("planetoids.seed");
+    cache = new HashMap<World, Map<Point, List<Planetoid>>>();
+    // load default configuration
+    this.setConfig(plugin.getConfig());
+  }
+
+  private void setConfig(FileConfiguration config) {
+    this.config = config;
+
     this.density = config.getInt("planetoids.planets.density");
     this.minDistance = config.getInt("planetoids.planets.minDistance");
     this.removeSingletons = config.getBoolean("planetoids.removesingleveins");
@@ -50,15 +58,35 @@ public class PGChunkGenerator extends ChunkGenerator {
     this.layer0Bedrock = config.getBoolean("planetoids.floor.layer0Bedrock");
 
     this.tmplManager = new PlanetoidTemplateManager(config.getConfigurationSection("planetoids.planets.templates"));
-
-    cache = new HashMap<Point, List<Planetoid>>();
   }
 
   @Override
   public short[][] generateExtBlockSections(World world, Random random, int x, int z, BiomeGrid biomes) {
+    File world_dir = world.getWorldFolder();
+    File world_cfg_location = new File(plugin.getDataFolder(), "world_" + world.getName() + ".yaml");
+    if (!world_dir.exists()) {
+      world_dir.mkdirs();
+    }
+
+    if (world_cfg_location.canRead()) {
+      this.setConfig(YamlConfiguration.loadConfiguration(world_cfg_location));
+    }
+    else {
+      try {
+        this.config.save(world_cfg_location);
+      }
+      catch (IOException e) {
+        this.plugin.getLogger().warning(String.format("Could not write world-specific configuration for world: %s", world.getName()));
+        this.plugin.getLogger().warning(String.format("IOException: %s", e.getMessage()));
+      }
+    }
+
     world.setBiome(x, z, Biome.SKY);
     int height = world.getMaxHeight();
     short[][] retVal = new short[height / 16][];
+    for (int i = 0; i < retVal.length; i++) {
+      retVal[i] = new short[16*16*16];
+    }
 
     int sysX;
     if (x >= 0) {
@@ -76,14 +104,17 @@ public class PGChunkGenerator extends ChunkGenerator {
       sysZ = -sysZ;
     }
 
+    if (!this.cache.containsKey(world)) {
+      this.cache.put(world, new HashMap<Point, List<Planetoid>>());
+    }
     //check if the "system" this chunk is in is cached
-    List<Planetoid> curSystem = cache.get(new Point(sysX, sysZ));
+    List<Planetoid> curSystem = cache.get(world).get(new Point(sysX, sysZ));
 
     if (curSystem == null) {
       //if not, does it exist on disk?
-      File systemFolder = new File(plugin.getDataFolder(), "Systems");
+      File systemFolder = new File(world_dir, "systems");
       if (!systemFolder.exists()) {
-        systemFolder.mkdir();
+        systemFolder.mkdirs();
       }
       File systemFile = new File(systemFolder, "system_" + sysX + "." + sysZ + ".dat");
       if (systemFile.exists()) {
@@ -92,7 +123,7 @@ public class PGChunkGenerator extends ChunkGenerator {
           FileInputStream fis = new FileInputStream(systemFile);
           ObjectInputStream ois = new ObjectInputStream(fis);
           curSystem = (List<Planetoid>) ois.readObject();
-          cache.put(new Point(sysX, sysZ), curSystem);
+          cache.get(world).put(new Point(sysX, sysZ), curSystem);
           ois.close();
           fis.close();
         } catch (Exception ex) {
@@ -100,7 +131,7 @@ public class PGChunkGenerator extends ChunkGenerator {
         }
       } else {
         //generate, save, and cache
-        curSystem = generatePlanets(sysX, sysZ, world.getMaxHeight());
+        curSystem = generatePlanets(world.getSeed(), sysX, sysZ, world.getMaxHeight());
         try {
           systemFile.createNewFile();
           FileOutputStream fos = new FileOutputStream(systemFile);
@@ -113,7 +144,7 @@ public class PGChunkGenerator extends ChunkGenerator {
         } catch (Exception ex) {
           ex.printStackTrace();
         }
-        cache.put(new Point(sysX, sysZ), curSystem);
+        cache.get(world).put(new Point(sysX, sysZ), curSystem);
       }
     }
 
@@ -166,9 +197,6 @@ public class PGChunkGenerator extends ChunkGenerator {
       }
     }
     //Fill in the floor
-    if (floorHeight > 0 && retVal[0] == null) {
-      retVal[0] = new short[4096];
-    }
     for (int i = 0; i < floorHeight; i++) {
       for (int j = 0; j < 16; j++) {
         for (int k = 0; k < 16; k++) {
@@ -195,7 +223,7 @@ public class PGChunkGenerator extends ChunkGenerator {
     return new Location(world, 7, 77, 7);
   }
 
-  private List<Planetoid> generatePlanets(int x, int z, int height) {
+  private List<Planetoid> generatePlanets(long seed, int x, int z, int height) {
     List<Planetoid> planetoids = new ArrayList<Planetoid>();
 
     //If x and Z are zero, generate a log/leaf planet close to 0,0
@@ -217,9 +245,9 @@ public class PGChunkGenerator extends ChunkGenerator {
       seed = -seed;
     }
 
+    
     Random rand = new Random(seed);
-    for (int i = 0; i
-            < Math.abs(x) + Math.abs(z); i++) {
+    for (int i = 0; i < Math.abs(x) + Math.abs(z); i++) {
       //cycle generator
       rand.nextDouble();
     }
@@ -271,7 +299,15 @@ public class PGChunkGenerator extends ChunkGenerator {
         planetoids.add(curPl);
       }
     }
-    System.out.println("Made new system with " + planetoids.size() + " planetoids."); //DEBUG
+
+    // DEBUGGING INFO
+    Logger logger = this.plugin.getLogger();
+    logger.info(String.format("Made a new system with %d planetoids", planetoids.size()));
+    logger.fine("Generated Planets:");
+    for (Planetoid p: planetoids) {
+      logger.fine(String.format("X: %d, Y: %d, Z: %d, Shell: %s, Core: %s",
+                                p.getxPos(), p.getyPos(), p.getzPos(), p.getShellMat(), p.getCoreMat()));
+    }
     return planetoids;
   }
 
