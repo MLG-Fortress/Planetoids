@@ -228,10 +228,10 @@ public class PGChunkGenerator extends ChunkGenerator {
 
     //If x and Z are zero, generate a log/leaf planet close to 0,0
     if (x == 0 && z == 0) {
-      int random = ThreadLocalRandom.current().nextInt(0, Tag.LOGS.getValues().size());
+      ThreadLocalRandom random = ThreadLocalRandom.current();
       Planetoid spawnPl = new Planetoid(6, 3,
-              Tag.LOGS.getValues().toArray(new Material[0])[random],
-              Tag.LEAVES.getValues().toArray(new Material[0])[random],
+              Tag.LOGS.getValues().toArray(new Material[0])[random.nextInt(0, Tag.LOGS.getValues().size())],
+              Tag.LEAVES.getValues().toArray(new Material[0])[random.nextInt(0, Tag.LEAVES.getValues().size())],
               new EnumMap<Material, VeinProbability>(Material.class),
               new EnumMap<Material, VeinProbability>(Material.class));
       spawnPl.setxPos(7);
