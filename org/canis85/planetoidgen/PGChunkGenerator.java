@@ -3,10 +3,11 @@ package org.canis85.planetoidgen;
 import java.awt.Point;
 import java.io.*;
 import java.util.*;
-import java.util.logging.Level;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -61,7 +62,7 @@ public class PGChunkGenerator extends ChunkGenerator {
   }
 
   @Override
-  public short[][] generateExtBlockSections(World world, Random random, int x, int z, BiomeGrid biomes) {
+  public ChunkData generateChunkData(World world, Random random, int x, int z, BiomeGrid biomes) {
     File world_dir = world.getWorldFolder();
     File world_cfg_location = new File(plugin.getDataFolder(), "world_" + world.getName() + ".yaml");
     if (!world_dir.exists()) {
@@ -81,12 +82,9 @@ public class PGChunkGenerator extends ChunkGenerator {
       }
     }
 
-    world.setBiome(x, z, Biome.SKY);
+    world.setBiome(x, z, Biome.THE_END);
     int height = world.getMaxHeight();
-    short[][] retVal = new short[height / 16][];
-    for (int i = 0; i < retVal.length; i++) {
-      retVal[i] = new short[16*16*16];
-    }
+    ChunkData retVal = createChunkData(world);
 
     int sysX;
     if (x >= 0) {
@@ -202,10 +200,12 @@ public class PGChunkGenerator extends ChunkGenerator {
         for (int k = 0; k < 16; k++) {
           if (i == 0 && layer0Bedrock) {
             //retVal[j * 2048 + k * 128 + i] = (byte) Material.BEDROCK.getId();
-            retVal[i >> 4][((i & 0xF) << 8) | (j << 4) | k] = (byte) Material.BEDROCK.getId();
+            //retVal[i >> 4][((i & 0xF) << 8) | (j << 4) | k] = (byte) Material.BEDROCK.getId();
+            retVal.setBlock(k, i, j, Material.BEDROCK);
           } else {
             //retVal[j * 2048 + k * 128 + i] = (byte) floorBlock.getId();
-            retVal[i >> 4][((i & 0xF) << 8) | (j << 4) | k] = (byte) floorBlock.getId();
+            //retVal[i >> 4][((i & 0xF) << 8) | (j << 4) | k] = (byte) floorBlock.getId();
+            retVal.setBlock(k, i, j, floorBlock);
           }
         }
       }
@@ -228,7 +228,10 @@ public class PGChunkGenerator extends ChunkGenerator {
 
     //If x and Z are zero, generate a log/leaf planet close to 0,0
     if (x == 0 && z == 0) {
-      Planetoid spawnPl = new Planetoid(6, 3, Material.LOG, Material.LEAVES,
+      int random = ThreadLocalRandom.current().nextInt(0, Tag.LOGS.getValues().size());
+      Planetoid spawnPl = new Planetoid(6, 3,
+              Tag.LOGS.getValues().toArray(new Material[0])[random],
+              Tag.LEAVES.getValues().toArray(new Material[0])[random],
               new EnumMap<Material, VeinProbability>(Material.class),
               new EnumMap<Material, VeinProbability>(Material.class));
       spawnPl.setxPos(7);
@@ -319,7 +322,7 @@ public class PGChunkGenerator extends ChunkGenerator {
     return xDist * xDist + yDist * yDist + zDist * zDist;
   }
 
-  private void generateSphere(Random rnd, short[][] chunk, int radius,
+  private void generateSphere(Random rnd, ChunkData chunkData, int radius,
                                      int relX, int y, int relZ, Material bulk,
                                      Map<Material, Double> veinSpawn,
                                      Map<Material, Double> veinGrowth) {
@@ -339,9 +342,6 @@ public class PGChunkGenerator extends ChunkGenerator {
             for (int curY = -zRadius; curY <= zRadius; curY++) {
               int blkY = y + curY;
               //retVal[(blkX * 16 + blkZ) * 128 + blkY] = (byte) curPl.shellBlk.getId();
-              if (chunk[blkY >> 4] == null) {
-                chunk[blkY >> 4] = new short[4096];
-              }
               Material mat = Util.sample(rnd, veinSpawn, false);
               if (mat == null) {
                 mat = bulk;
@@ -349,7 +349,7 @@ public class PGChunkGenerator extends ChunkGenerator {
               else {
                 veinPositions.add(new VeinPosition(blkX, blkY, blkZ));
               }
-              chunk[blkY >> 4][((blkY & 0xF) << 8) | (blkZ << 4) | blkX] = (short)mat.getId();
+              chunkData.setBlock(blkX, blkY, blkZ, mat);
             }
           }
         }
@@ -359,7 +359,8 @@ public class PGChunkGenerator extends ChunkGenerator {
     // postprocess the chunk to add veins
     while (!veinPositions.isEmpty()) {
       VeinPosition p = veinPositions.poll();
-      Material mat = Material.getMaterial(chunk[p.getY() >> 4][((p.getY() & 0xF) << 8) | (p.getZ() << 4) | p.getX()]);
+      Material mat = chunkData.getType(p.getX(), p.getY(), p.getZ());
+
 
       boolean remove = this.removeSingletons && (p.getGeneration() == 0);
       for (int i = 0; i < 6; i++) {
@@ -371,14 +372,14 @@ public class PGChunkGenerator extends ChunkGenerator {
         int newY = p.getY() + (1 - i % 2) * (i / 2 == 1 ? 1 : 0);
         int newZ = p.getZ() + (1 - i % 2) * (i / 2 == 2 ? 1 : 0);
 
-        if (newX >= 0 && newX < 16 && newY >= 0 && newY < chunk.length * 16 && newZ >= 0 && newZ < 16) {
+        if (newX >= 0 && newX < 16 && newY >= 0 && newY < chunkData.getMaxHeight() && newZ >= 0 && newZ < 16) {
           // new point is in the current chunk
           int diffX = newX - relX;
           int diffY = newY -    y;
           int diffZ = newZ - relZ;
           if (diffX*diffX + diffY*diffY + diffZ*diffZ <= radius*radius) {
-            if (chunk[newY >> 4][((newY & 0xF) << 8) | (newZ << 4) | newX] == bulk.getId()) {
-              chunk[newY >> 4][((newY & 0xF) << 8) | (newZ << 4) | newX] = (short)mat.getId();
+            if (chunkData.getType(newX, newY, newZ) == bulk) {
+              chunkData.setBlock(newX, newY, newZ, mat);
               veinPositions.add(new VeinPosition(newX, newY, newZ, p.getGeneration() + 1));
               remove = false;
             }
@@ -387,7 +388,7 @@ public class PGChunkGenerator extends ChunkGenerator {
       }
 
       if (remove) {
-        chunk[p.getY() >> 4][((p.getY() & 0xF) << 8) | (p.getZ() << 4) | p.getX()] = (short)bulk.getId();
+        chunkData.setBlock(p.getX(), p.getY(), p.getZ(), bulk);
       }
     }
   }
