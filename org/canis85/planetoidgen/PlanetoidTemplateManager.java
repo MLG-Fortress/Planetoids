@@ -46,7 +46,7 @@ public class PlanetoidTemplateManager {
 
   public PlanetoidTemplate selectTemplate(Random rnd) {
     PlanetoidTemplate result = Util.sample(rnd, this.templates);
-    System.out.println("planetoid " + result.toString());
+    System.out.println("planetoid " + result);
     return result;
   }
 }
