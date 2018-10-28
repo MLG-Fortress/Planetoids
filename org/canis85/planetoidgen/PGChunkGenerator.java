@@ -362,7 +362,7 @@ public class PGChunkGenerator extends ChunkGenerator {
       Material mat = chunkData.getType(p.getX(), p.getY(), p.getZ());
 
 
-      if (mat == null || veinGrowth == null || rnd == null || veinGrowth.get(mat) == null))
+      if (mat == null || veinGrowth == null || rnd == null || veinGrowth.get(mat) == null)
       {
         System.err.println("something is null?!?!?!?!?!!!!!!!!!!?????????????????????????");
         System.err.println("mat is " + mat);
