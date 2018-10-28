@@ -4,6 +4,7 @@ version: 1.3.1_b
 description: Creates a world full of planets.
 author: Canis85 (modded by Niphred)
 load: startup
+api-version: 1.13
 commands:
     pltp:
         description: Moves the player to/from the planetoids area

@@ -91,7 +91,7 @@ public class PlanetoidTemplate {
       Material mat = Material.matchMaterial(parts[0]);
 
       if (mat == null) {
-        System.err.println("Invalid Material: " + parts[0]);
+        System.err.println("[Planetoids] Invalid Material: " + parts[0]);
         mat = Material.AIR;
       }
 
@@ -117,7 +117,7 @@ public class PlanetoidTemplate {
       Material mat = Material.matchMaterial(parts[0]);
 
       if (mat == null) {
-        System.err.println("Invalid Material: " + parts[0]);
+        System.err.println("[Planetoids] Invalid Material: " + parts[0]);
         mat = Material.AIR;
       }
 

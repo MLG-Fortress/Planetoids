@@ -40,7 +40,7 @@ public class PlanetoidTemplateManager {
     for (String section: sections) {
       PlanetoidTemplate tmpl = new PlanetoidTemplate(config.getConfigurationSection(section));
       this.templates.put(tmpl, tmpl.getProbability());
-      System.out.println("planetoid " + tmpl.toString());
+      System.out.println("initialized " + tmpl.toString() + " with probability " + tmpl.getProbability());
     }
   }
 
