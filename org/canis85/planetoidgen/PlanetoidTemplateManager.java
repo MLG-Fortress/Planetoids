@@ -40,13 +40,13 @@ public class PlanetoidTemplateManager {
     for (String section: sections) {
       PlanetoidTemplate tmpl = new PlanetoidTemplate(config.getConfigurationSection(section));
       this.templates.put(tmpl, tmpl.getProbability());
-      System.out.println("planetoid " + tmpl.getMinY());
+      System.out.println("planetoid " + tmpl.toString());
     }
   }
 
   public PlanetoidTemplate selectTemplate(Random rnd) {
     PlanetoidTemplate result = Util.sample(rnd, this.templates);
-    System.out.println("planetoid " + result.getProbability());
+    System.out.println("planetoid " + result.toString());
     return result;
   }
 }
