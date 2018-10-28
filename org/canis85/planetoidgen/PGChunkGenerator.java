@@ -369,6 +369,9 @@ public class PGChunkGenerator extends ChunkGenerator {
         System.err.println("veinGrowth is " + veinGrowth);
         System.err.println("rnd is " + rnd);
         System.err.println("veinGrowth.get is " + veinGrowth.get(mat));
+        System.err.println("blockData is " + chunkData.getBlockData(p.getX(), p.getY(), p.getZ()));
+        System.err.println("blockData.getMaterial is " + chunkData.getBlockData(p.getX(), p.getY(), p.getZ()).getMaterial());
+        mat = chunkData.getBlockData(p.getX(), p.getY(), p.getZ()).getMaterial();
       }
       boolean remove = this.removeSingletons && (p.getGeneration() == 0);
       for (int i = 0; i < 6; i++) {
