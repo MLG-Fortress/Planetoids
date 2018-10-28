@@ -359,20 +359,9 @@ public class PGChunkGenerator extends ChunkGenerator {
     // postprocess the chunk to add veins
     while (!veinPositions.isEmpty()) {
       VeinPosition p = veinPositions.poll();
-      Material mat = chunkData.getType(p.getX(), p.getY(), p.getZ());
+      //Material mat = chunkData.getType(p.getX(), p.getY(), p.getZ());
+      Material mat = chunkData.getBlockData(p.getX(), p.getY(), p.getZ()).getMaterial();
 
-
-      if (mat == null || veinGrowth == null || rnd == null || veinGrowth.get(mat) == null)
-      {
-        System.err.println("something is null?!?!?!?!?!!!!!!!!!!?????????????????????????");
-        System.err.println("mat is " + mat);
-        System.err.println("veinGrowth is " + veinGrowth);
-        System.err.println("rnd is " + rnd);
-        System.err.println("veinGrowth.get is " + veinGrowth.get(mat));
-        System.err.println("blockData is " + chunkData.getBlockData(p.getX(), p.getY(), p.getZ()));
-        System.err.println("blockData.getMaterial is " + chunkData.getBlockData(p.getX(), p.getY(), p.getZ()).getMaterial());
-        mat = chunkData.getBlockData(p.getX(), p.getY(), p.getZ()).getMaterial();
-      }
       boolean remove = this.removeSingletons && (p.getGeneration() == 0);
       for (int i = 0; i < 6; i++) {
         if (rnd.nextDouble() > veinGrowth.get(mat) * (1.0 / (1 + p.getGeneration()))) {
