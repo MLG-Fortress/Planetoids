@@ -362,11 +362,13 @@ public class PGChunkGenerator extends ChunkGenerator {
       Material mat = chunkData.getType(p.getX(), p.getY(), p.getZ());
 
 
-      if (mat == null || veinGrowth == null)
+      if (mat == null || veinGrowth == null || rnd == null || veinGrowth.get(mat) == null))
       {
         System.err.println("something is null?!?!?!?!?!!!!!!!!!!?????????????????????????");
         System.err.println("mat is " + mat);
         System.err.println("veinGrowth is " + veinGrowth);
+        System.err.println("rnd is " + rnd);
+        System.err.println("veinGrowth.get is " + veinGrowth.get(mat));
       }
       boolean remove = this.removeSingletons && (p.getGeneration() == 0);
       for (int i = 0; i < 6; i++) {
